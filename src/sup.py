@@ -11,7 +11,6 @@ from sklearn.metrics import (
     accuracy_score, precision_score, recall_score,
     f1_score, classification_report, confusion_matrix
 )
-from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -128,7 +127,6 @@ def salvar_curva_aprendizado(modelo, nome, X_tr, y_tr, X_v, y_v):
 
 # treinamento dos modelos
 modelos = {
-    "Dummy": DummyClassifier(strategy="most_frequent"),
     "Regressão Logistica": LogisticRegression(max_iter=1000, random_state=42),
     "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
     "XGBoost": XGBClassifier(random_state=42),
