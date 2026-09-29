@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import hstack, save_npz
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GroupShuffleSplit
 
 # config
 DIRETORIO_SRC = os.path.dirname(os.path.abspath(__file__))
@@ -31,14 +31,27 @@ df['claim']    = df['claim'].fillna('').astype(str)
 df['evidence'] = df['evidence'].fillna('').astype(str)
 
 # divisao (train / val / test)
-# separaçao com estratificaçao para manter a proporçao das classes
-df_train, df_temp = train_test_split(df, test_size=0.30, random_state=42, stratify=df['label_multiclasse'])
-df_val, df_test   = train_test_split(df_temp, test_size=0.50, random_state=42, stratify=df_temp['label_multiclasse'])
+# passo 1: separa 70% das claims para o treino e 30% para um bloco temporario
+gss1 = GroupShuffleSplit(n_splits=1, test_size=0.30, random_state=42)
+train_idx, temp_idx = next(gss1.split(df, groups=df['claim']))
 
-print(f"divisão concluída: treino ({len(df_train)}), validação ({len(df_val)}), teste ({len(df_test)})")
+df_train = df.iloc[train_idx]
+df_temp = df.iloc[temp_idx]
+
+# passo 2: divide o bloco temporario ao meio (15% validaçao / 15% teste)
+gss2 = GroupShuffleSplit(n_splits=1, test_size=0.50, random_state=42)
+val_idx, test_idx = next(gss2.split(df_temp, groups=df_temp['claim']))
+
+df_val = df_temp.iloc[val_idx]
+df_test = df_temp.iloc[test_idx]
+
+print(
+    f"divisão segura concluída: treino ({len(df_train)} linhas), "
+    f"validação ({len(df_val)} linhas), teste ({len(df_test)} linhas)"
+)
 
 # vetorizaçao
-print("Aplicando vetorização TF-IDF...")
+print("aplicando vetorização TF-IDF...")
 vec_question = TfidfVectorizer(max_features=400,  min_df=2, stop_words='english', ngram_range=(1, 2))
 vec_claim    = TfidfVectorizer(max_features=800,  min_df=2, stop_words='english', ngram_range=(1, 2))
 vec_evidence = TfidfVectorizer(max_features=1200, min_df=2, stop_words='english', ngram_range=(1, 2))
