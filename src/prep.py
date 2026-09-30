@@ -39,36 +39,35 @@ df_test = df_temp.iloc[test_idx]
 
 print(f"divisao segura: treino ({len(df_train)}), val ({len(df_val)}), teste ({len(df_test)})")
 
-# geracao de embeddings SBERT
-modelo_sbert = SentenceTransformer('all-MiniLM-L6-v2')
+# SBERT
+modelo_sbert = SentenceTransformer('all-mpnet-base-V2')
 
-# gera embeddings Treino
-# o SBERT converte cada lista de textos numa matriz densa de 384 colunas numericas
-X_tr_q = modelo_sbert.encode(df_train['question'].tolist(), show_progress_bar=True)
-X_tr_c = modelo_sbert.encode(df_train['claim'].tolist(), show_progress_bar=False)
-X_tr_e = modelo_sbert.encode(df_train['evidence'].tolist(), show_progress_bar=False)
-X_train_dense = np.hstack([X_tr_q, X_tr_c, X_tr_e])
+def gerar_features_nli(df_subset, nome_conjunto):
+    print(f"processando {nome_conjunto}...")
+    
+    # gera os embeddings apenas da claim e da evidence
+    X_c = modelo_sbert.encode(df_subset['claim'].tolist(), show_progress_bar=False)
+    X_e = modelo_sbert.encode(df_subset['evidence'].tolist(), show_progress_bar=False)
+    
+    # subtração absoluta (mede a distancia/contradiçao)
+    X_diff = np.abs(X_c - X_e)
+    # multiplicaçao (mede a interaçao/sobreposiçao de ideias)
+    X_mult = X_c * X_e
+    
+    # junta tudo numa matriz enxuta (claim, evidence, diferença, multiplicaçao)
+    X_denso = np.hstack([X_c, X_e, X_diff, X_mult])
+    return X_denso
 
-# gera embeddings Validaçao
-X_val_q = modelo_sbert.encode(df_val['question'].tolist(), show_progress_bar=False)
-X_val_c = modelo_sbert.encode(df_val['claim'].tolist(), show_progress_bar=False)
-X_val_e = modelo_sbert.encode(df_val['evidence'].tolist(), show_progress_bar=False)
-X_val_dense = np.hstack([X_val_q, X_val_c, X_val_e])
-
-# gera embeddings Teste
-X_test_q = modelo_sbert.encode(df_test['question'].tolist(), show_progress_bar=False)
-X_test_c = modelo_sbert.encode(df_test['claim'].tolist(), show_progress_bar=False)
-X_test_e = modelo_sbert.encode(df_test['evidence'].tolist(), show_progress_bar=False)
-X_test_dense = np.hstack([X_test_q, X_test_c, X_test_e])
+X_train_dense = gerar_features_nli(df_train, "Treino")
+X_val_dense   = gerar_features_nli(df_val, "Validação")
+X_test_dense  = gerar_features_nli(df_test, "Teste")
 
 y_train = df_train['label_multiclasse'].values
 y_val   = df_val['label_multiclasse'].values
 y_test  = df_test['label_multiclasse'].values
 
-# exportaçao (denso)
+# exportacao
 print("guardando em 'data/processed'...")
-
-# salvamos como numpy array padrao (.npy)
 np.save(os.path.join(PASTA_PROCESSED, 'X_train_emb.npy'), X_train_dense)
 np.save(os.path.join(PASTA_PROCESSED, 'X_val_emb.npy'), X_val_dense)
 np.save(os.path.join(PASTA_PROCESSED, 'X_test_emb.npy'), X_test_dense)
@@ -77,4 +76,4 @@ np.save(os.path.join(PASTA_PROCESSED, 'y_train.npy'), y_train)
 np.save(os.path.join(PASTA_PROCESSED, 'y_val.npy'), y_val)
 np.save(os.path.join(PASTA_PROCESSED, 'y_test.npy'), y_test)
 
-print(f"novo formato denso: {X_train_dense.shape}.")
+print(f"novo formato: {X_train_dense.shape}.")
