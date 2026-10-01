@@ -67,11 +67,11 @@ def plotar_curva_aprendizado(estimator, X, y, nome_modelo):
 
 
 modelos = {
-#    "Regressao_Logistica": LogisticRegression(max_iter=2000, class_weight='balanced', random_state=42),
-#    "SVM_Linear": LinearSVC(max_iter=3000, class_weight='balanced', random_state=42),
+    "Regressao_Logistica": LogisticRegression(max_iter=2000, class_weight='balanced', random_state=42),
+    "SVM_Linear": LinearSVC(max_iter=3000, class_weight='balanced', random_state=42),
     "Random_Forest": RandomForestClassifier(n_estimators=100, max_depth=15, class_weight='balanced', random_state=42, n_jobs=-1),
-#    "Rede_Neural_MLP": MLPClassifier(hidden_layer_sizes=(256, 128), activation='relu', solver='adam', alpha=0.01, learning_rate_init=0.001, max_iter=500, random_state=42, early_stopping=True),
-#    "XGBoost": XGBClassifier(n_estimators=150, max_depth=3, learning_rate=0.05, subsample=0.8, colsample_bytree=0.8, reg_lambda=5.0, random_state=42, n_jobs=-1, tree_method='hist')
+    "Rede_Neural_MLP": MLPClassifier(hidden_layer_sizes=(256, 128), activation='relu', solver='adam', alpha=0.01, learning_rate_init=0.001, max_iter=500, random_state=42, early_stopping=True),
+    "XGBoost": XGBClassifier(n_estimators=150, max_depth=3, learning_rate=0.05, subsample=0.8, colsample_bytree=0.8, reg_lambda=5.0, random_state=42, n_jobs=-1, tree_method='hist')
 }
 
 # subsample = usa apenas 80% das linhas em cada arvore (adc aleatoriedade)
