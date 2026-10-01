@@ -1,3 +1,3 @@
-# ignora arquivos gerados do projeto, mas mantém os dados TF-IDF do treinamento
+# ignora arquivos gerados do projeto, mas mantém os dados do treinamento
 data/raw/*.xlsx
 resultados/**/*.png
