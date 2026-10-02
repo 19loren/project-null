@@ -2,6 +2,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from imblearn.over_sampling import SMOTE
 from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import LinearSVC
@@ -19,15 +20,22 @@ PASTA_GRAFICOS = os.path.join(DIRETORIO_BASE, "resultados" , "sup" , "graficos")
 os.makedirs(PASTA_GRAFICOS, exist_ok=True)
 
 # carregamento dados
-X_train = np.load(os.path.join(PASTA_PROCESSED, 'X_train_emb.npy'))
-X_val   = np.load(os.path.join(PASTA_PROCESSED, 'X_val_emb.npy'))
-X_test  = np.load(os.path.join(PASTA_PROCESSED, 'X_test_emb.npy'))
+X_train = np.load(os.path.join(PASTA_PROCESSED, 'X_train_emb.npy'), allow_pickle=True)
+X_val   = np.load(os.path.join(PASTA_PROCESSED, 'X_val_emb.npy'), allow_pickle=True)
+X_test  = np.load(os.path.join(PASTA_PROCESSED, 'X_test_emb.npy'), allow_pickle=True)
 
-y_train = np.load(os.path.join(PASTA_PROCESSED, 'y_train.npy'))
-y_val   = np.load(os.path.join(PASTA_PROCESSED, 'y_val.npy'))
-y_test  = np.load(os.path.join(PASTA_PROCESSED, 'y_test.npy'))
+y_train = np.load(os.path.join(PASTA_PROCESSED, 'y_train.npy'), allow_pickle=True)
+y_val   = np.load(os.path.join(PASTA_PROCESSED, 'y_val.npy'), allow_pickle=True)
+y_test  = np.load(os.path.join(PASTA_PROCESSED, 'y_test.npy'), allow_pickle=True)
 
-print(f"Dados carregados! Formato do Treino: {X_train.shape}")
+print(f"tamanho do treino antes do SMOTE: {X_train.shape}")
+
+# aplicar SMOTE no conjunto de treino
+print("gerando dados sintéticos para balancear as classes...")
+smote = SMOTE(random_state=42)
+X_train_balanceado, y_train_balanceado = smote.fit_resample(X_train, y_train)
+
+print(f"tamanho do treino depois do SMOTE: {X_train_balanceado.shape}")
 
 # func visualizacao
 def plotar_matriz_confusao(y_true, y_pred, nome_modelo):
@@ -81,8 +89,8 @@ modelos = {
 # treino, avaliacao e graficos
 for nome, modelo in modelos.items():
     print(f"\n[{nome}] treinando o modelo...")
-    modelo.fit(X_train, y_train)
-    
+    modelo.fit(X_train_balanceado, y_train_balanceado)
+
     y_pred_val = modelo.predict(X_val)
     print(f"[{nome}] resultados na validacao:")
     print(classification_report(y_val, y_pred_val, zero_division=0))
