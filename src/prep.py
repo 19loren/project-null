@@ -20,9 +20,8 @@ except FileNotFoundError:
     print(f"ERRO: arquivo não encontrado em {caminho_excel}")
     exit()
 
-df['question'] = df['question'].fillna('').astype(str)
-df['claim']    = df['claim'].fillna('').astype(str)
-df['evidence'] = df['evidence'].fillna('').astype(str)
+df['claim']    = df['claim'].fillna('').astype(str).str.strip().replace(r"\s+", " ", regex=True)
+df['evidence'] = df['evidence'].fillna('').astype(str).str.strip().replace(r"\s+", " ", regex=True)
 
 # divisao (treino / val / teste)
 gss1 = GroupShuffleSplit(n_splits=1, test_size=0.30, random_state=42)

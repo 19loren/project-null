@@ -1,13 +1,9 @@
 import os
 import numpy as np
+import joblib
 import matplotlib.pyplot as plt
 import seaborn as sns
 from imblearn.over_sampling import SMOTE
-from sklearn.dummy import DummyClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import LinearSVC
-from sklearn.ensemble import RandomForestClassifier
-from xgboost import XGBClassifier
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import learning_curve
 from sklearn.neural_network import MLPClassifier
@@ -42,8 +38,8 @@ def plotar_matriz_confusao(y_true, y_pred, nome_modelo):
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(6,4))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                xticklabels=['0 (Suporta)', '1 (Neutra)', '2 (Refuta)'], 
-                yticklabels=['0 (Suporta)', '1 (Neutra)', '2 (Refuta)'])
+                xticklabels=['0 (Suporta)', '1 (Refuta)', '2 (Neutra)'], 
+                yticklabels=['0 (Suporta)', '1 (Refuta)', '2 (Neutra)'])
     plt.title(f'Matriz de Confusão - {nome_modelo}')
     plt.ylabel('Gabarito (Real)')
     plt.xlabel('Previsão do Modelo')
@@ -74,20 +70,19 @@ def plotar_curva_aprendizado(estimator, X, y, nome_modelo):
     plt.close()
 
 
-modelos = {
-    "Regressao_Logistica": LogisticRegression(max_iter=2000, class_weight='balanced', random_state=42),
-    "SVM_Linear": LinearSVC(max_iter=3000, class_weight='balanced', random_state=42),
-    "Random_Forest": RandomForestClassifier(n_estimators=100, max_depth=15, class_weight='balanced', random_state=42, n_jobs=-1),
-    "Rede_Neural_MLP": MLPClassifier(hidden_layer_sizes=(256, 128), activation='relu', solver='adam', alpha=0.01, learning_rate_init=0.001, max_iter=500, random_state=42, early_stopping=True),
-    "XGBoost": XGBClassifier(n_estimators=150, max_depth=3, learning_rate=0.05, subsample=0.8, colsample_bytree=0.8, reg_lambda=5.0, random_state=42, n_jobs=-1, tree_method='hist')
+modelo = {
+    "Rede_Neural_MLP": MLPClassifier(hidden_layer_sizes=(256, 128),
+                       activation='relu', 
+                       solver='adam', alpha=0.01, 
+                       learning_rate_init=0.001, 
+                       max_iter=500, 
+                       random_state=42, 
+                       early_stopping=True),
 }
 
-# subsample = usa apenas 80% das linhas em cada arvore (adc aleatoriedade)
-# colsample_bytree = usa apenas 80% das colunas em cada arvore
-# reg_lambda = pune o modelo se ele tentar decorar
 
 # treino, avaliacao e graficos
-for nome, modelo in modelos.items():
+for nome, modelo in modelo.items():
     print(f"\n[{nome}] treinando o modelo...")
     modelo.fit(X_train_balanceado, y_train_balanceado)
 
@@ -102,3 +97,8 @@ for nome, modelo in modelos.items():
     plotar_curva_aprendizado(modelo, X_train, y_train, nome)
 
 print("\ngráficos gerados")
+
+# salvar o modelo treinado na pasta processed
+caminho_modelo = os.path.join(PASTA_PROCESSED, 'modelo_mlp_profilaxia.pkl')
+joblib.dump(modelo, caminho_modelo)
+print(f"modelo final salvo com sucesso em: {caminho_modelo}")

@@ -5,3 +5,8 @@ scikit-learn
 matplotlib
 xgboost
 openpyxl
+spacy
+yake
+sentencepiece
+sacremoses
+joblib
