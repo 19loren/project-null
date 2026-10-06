@@ -10,3 +10,6 @@ yake
 sentencepiece
 sacremoses
 joblib
+transformers
+torch
+requests

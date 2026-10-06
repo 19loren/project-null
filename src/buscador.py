@@ -66,7 +66,7 @@ def pergunta_para_claim(pergunta):
 
 
 # palavras-chave da claim: poucas palavras-chave sao melhores pq a busca é por AND
-def palavrachaveEv(claim, max_k=3):
+def palavrachaveEv(claim, max_k=5):
     ext = yake.KeywordExtractor(lan="en", n=1, dedupLim=0.9, windowsSize=2, top=max_k)
     keywords = ext.extract_keywords(claim)
     keywords = sorted(keywords, key=lambda x: x[1])

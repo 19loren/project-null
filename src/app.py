@@ -1,82 +1,100 @@
 import os
 import joblib
 import numpy as np
+import requests
+import functools
+import time
+import warnings
+from transformers import logging
+
+# Calar os avisos vermelhos
+logging.set_verbosity_error()
+warnings.filterwarnings("ignore")
+
 from sentence_transformers import SentenceTransformer
 
+NCBI_API_KEY = "0ee2148580f3394873b20961bddd4488b608"
+
+original_get = requests.get
+
+# interpcetor
+@functools.wraps(original_get)
+def get_com_chave(*args, **kwargs):
+    params = kwargs.get('params', {})
+    if params is None:
+        params = {}
+    
+    # injeta a chave em qualquer pedido que o buscador
+    if isinstance(params, dict):
+        params['api_key'] = NCBI_API_KEY
+        kwargs['params'] = params
+        
+    # adiciona uma micropausa de segurança exigida pelas regras da NCBI
+    time.sleep(0.3)
+    
+    return original_get(*args, **kwargs)
+
+requests.get = get_com_chave
+
+# importa buscador
 from buscador import coletar_evidencias, traduzir_Marian
 
-print("carregando motores...")
+print("Carregando modelo...")
 DIRETORIO_ATUAL = os.path.dirname(os.path.abspath(__file__))
 DIRETORIO_BASE = os.path.dirname(DIRETORIO_ATUAL)
 caminho_modelo = os.path.join(DIRETORIO_BASE, "data", "processed", "modelo_mlp_profilaxia.pkl")
 
-# carrega a rede neural e motor semantico
 modelo_mlp = joblib.load(caminho_modelo)
 motor_semantico = SentenceTransformer('all-mpnet-base-v2')
+MAPA_LABELS = {0: "SUPPORTED", 1: "REFUTED", 2: "NEUTRAL"}
 
-MAPA_LABELS = {
-    0: "SUPPORTED",
-    1: "NEUTRAL",
-    2: "REFUTED"
-}
-
-def classificar_pergunta(pergunta_pt):
-    print(f"\n[1] A traduzir e buscar no PubMed: '{pergunta_pt}'...")
-    
-    # traduz (opcional se quiser usar o da colega direto) e busca
+def analisar_alegacao(pergunta_pt):
+    print(f"\n[1] Traduzindo '{pergunta_pt}'...")
     pergunta_en = traduzir_Marian(pergunta_pt)
-    resultado = coletar_evidencias(pergunta_en, n=10)
+    print(f"Tradução: {pergunta_en}")
     
-    if not resultado or not resultado["evidencias"]:
-        return {"status": "erro", "mensagem": "Não foram encontradas evidências suficientes."}
+    print(f"[2] Vasculhando o PubMed...")
     
-    # gera o vetor da claim
+    resultado = coletar_evidencias(pergunta_en, n=20)
+    
+    if resultado is None or not resultado.get("evidencias"):
+        return {"status": "erro", "mensagem": "Não foram encontradas evidências suficientes. A gramática pode ter falhado ou não há artigos Open Access."}
+
+    print(f"[3] A Rede Neural vai classificar as {len(resultado['evidencias'])} evidências válidas...")
+    
     vetor_claim = motor_semantico.encode(resultado["claim"])
+    evidencias_classificadas = []
     
-    evidencias_finais = []
-    
-    print(f"[2] A analisar {len(resultado['evidencias'])} artigos científicos...")
-    
-    # itera sobre a lista de objetos "evidencia"
     for ev in resultado["evidencias"]:
-        # transforma o texto do artigo num vetor matematico
-        vetor_ev = motor_semantico.encode(ev.evidencia)
+        # limite de leitura de 350 caracteres para evitar overfitting de ruído (classificações NEUTRAS incorretas)
+        texto_para_ia = ev.evidencia[:350] 
+        vetor_ev = motor_semantico.encode(texto_para_ia)
         
-        # a matematica usada no prep.py
         diferenca = np.abs(vetor_claim - vetor_ev)
         produto = vetor_claim * vetor_ev
+        entrada_ia = np.concatenate([vetor_claim, vetor_ev, diferenca, produto]).reshape(1, -1)
         
-        # empacota (3072 dimensoes)
-        entrada = np.concatenate([vetor_claim, vetor_ev, diferenca, produto]).reshape(1, -1)
-        
-        # faz a previsao (0, 1 ou 2)
-        predicao_num = modelo_mlp.predict(entrada)[0]
-        
-        # preenche o espaço vazio (None)
+        predicao_num = modelo_mlp.predict(entrada_ia)[0]
         ev.label = MAPA_LABELS[predicao_num]
         
-        evidencias_finais.append(ev)
-    
+        evidencias_classificadas.append(ev)
+        
     return {
         "status": "sucesso",
-        "claim_en": resultado["claim"],
-        "evidencias": evidencias_finais
+        "claim": resultado["claim"],
+        "evidencias": evidencias_classificadas
     }
 
 # teste
 if __name__ == "__main__":
-    pergunta_usuario = "A vitamina D previne a COVID-19?"
-    analise = classificar_pergunta(pergunta_usuario)
+    pergunta = input("Digite a alegação médica: ")
+    analise = analisar_alegacao(pergunta)
     
     if analise["status"] == "sucesso":
-        print("\n" + "="*50)
-        print(f"CLAIM: {analise['claim_en']}")
-        print("="*50)
         
         for ev in analise["evidencias"]:
-            print(f"\n[{ev.label}] - {ev.titulo}")
-            print(f"Ano: {ev.ano} | PMCID: {ev.pmcid}")
-            print(f"Link: {ev.link}")
-            print(f"Trecho: {ev.evidencia[:200]}...")
+            print(f"\n[CLASSIFICAÇÃO: {ev.label}] - {ev.titulo}")
+            print(f"Link PubMed: {ev.link}")
+            print(f"Trecho: {ev.evidencia[:200]}...") 
     else:
-        print(analise["mensagem"])
+        print("\n[ERRO]", analise["mensagem"])
