@@ -1,27 +1,26 @@
 """
-Buscador de evidências.
+buscador de evidencias
 
-Fluxo:
-1. Pega a pergunta (já em inglês);
-2. Transforma em uma afirmação (claim);
-3. Extrai palavras-chave da claim;
-4. Busca PMIDs no PubMed a partir das palavras-chave;
-5. Descobre quais PMIDs têm PMCID;
-6. A partir do PMCID, baixa o artigo (BioC);
-7. Pega a conclusão (1º parágrafo, cortado por frase até 900 caracteres);
-8. Filtra por relevância (keyword precisa aparecer na conclusão);
-9. Busca os dados bibliográficos (título, autores, ano);
-10. Devolve uma lista de Evidencia, com `label` vazio para o modelo preencher.
+fluxo:
+1. pega a pergunta (ja em ingles);
+2. transforma em uma afirmaçao (claim);
+3. extrai palavras-chave da claim;
+4. busca PMIDs no PubMed a partir das palavras-chave;
+5. descobre quais PMIDs tem PMCID;
+6. a partir do PMCID, baixa o artigo (BioC);
+7. pega a conclusao (1º paragrafo, cortado por frase ate 900 caracteres);
+8. filtra por relevancia (keyword precisa aparecer na conclusao);
+9. busca os dados bibliograficos (titulo, autores, ano);
+10. devolve uma lista de evidencia, com `label` vazio para o modelo preencher.
 
-Uso:
+uso:
     from buscador import coletar_evidencias
     resultado = coletar_evidencias("Does vitamin D prevent COVID-19?")
 """
 
 import re
 import time
-import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from typing import Optional
 
 import pandas as pd
