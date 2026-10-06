@@ -36,6 +36,7 @@ tok_marian = MarianTokenizer.from_pretrained(NOME_MARIAN)
 modelo_marian = MarianMTModel.from_pretrained(NOME_MARIAN)
 
 
+
 def traduzir_Marian(texto: str) -> str:
     entrada = tok_marian([texto], return_tensors="pt", padding=True)
     saida = modelo_marian.generate(**entrada, max_new_tokens=256)
@@ -50,6 +51,8 @@ nlp = spacy.load("en_core_web_sm")
 
 def pergunta_para_claim(pergunta):
     doc = nlp(pergunta.strip().rstrip("?"))
+    if len(doc) == 0 or doc[0].pos_ != "AUX":
+        return None
     aux = doc[0].text.lower()
     sujeitos = [t for t in doc if t.dep_ in ("nsubj", "nsubjpass")]
     if not sujeitos:
