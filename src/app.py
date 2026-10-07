@@ -1,4 +1,5 @@
 import os
+import re
 import joblib
 import numpy as np
 import requests
@@ -37,7 +38,7 @@ def get_com_chave(*args, **kwargs):
 requests.get = get_com_chave
 
 # importa buscador
-from buscador import coletar_evidencias, traduzir_Marian
+from buscador import coletar_evidencias, traduzir_Marian, pergunta_para_claim
 
 print("Carregando modelo...")
 DIRETORIO_ATUAL = os.path.dirname(os.path.abspath(__file__))
@@ -48,11 +49,72 @@ modelo_mlp = joblib.load(caminho_modelo)
 motor_semantico = SentenceTransformer('all-mpnet-base-v2')
 MAPA_LABELS = {0: "SUPPORTED", 1: "REFUTED", 2: "NEUTRAL"}
 
+MAX_CHARS = 300
+MIN_PALAVRAS = 2
+EXEMPLO = "Tente algo como: 'A vitamina D previne a COVID-19?'"
+
+def _erro(tipo, mensagem):
+    return {"status": "erro", "tipo": tipo, "mensagem": mensagem}
+
+
+def validar_pergunta(pergunta_pt):
+    """Devolve (pergunta_en, None) se a entrada é válida,
+    ou (None, erro) se não for."""
+    texto = " ".join((pergunta_pt or "").split())   # tira espaços extras
+
+    # 1. vazia
+    if not texto:
+        return None, _erro("vazia", "Digite uma pergunta para começar.")
+
+    # 2. só números ou símbolos
+    letras = re.findall(r"[^\W\d_]", texto)
+    if not letras:
+        return None, _erro("sem_letras",
+            f"Sua entrada tem só números ou símbolos. {EXEMPLO}")
+
+    # 3. símbolos/números demais em relação às letras
+    if len(letras) / len(texto.replace(" ", "")) < 0.6:
+        return None, _erro("muitos_simbolos",
+            f"Sua entrada tem símbolos ou números demais para ser uma pergunta. {EXEMPLO}")
+
+    # 4. longa demais
+    if len(texto) > MAX_CHARS:
+        return None, _erro("muito_longa",
+            f"A pergunta passou de {MAX_CHARS} caracteres. Reescreva de forma mais curta.")
+
+    # 5. curta demais
+    palavras = re.findall(r"[^\W\d_]+", texto)
+    if len(palavras) < MIN_PALAVRAS:
+        return None, _erro("curta_demais",
+            f"A pergunta está curta demais. {EXEMPLO}")
+
+    # 6. sem sentido (letras repetidas, sequências de consoantes, palavra gigante)
+    minusc = texto.lower()
+    if (re.search(r"(.)\1{3,}", minusc)
+            or re.search(r"[bcdfghjklmnpqrstvwxzç]{6,}", minusc)
+            or any(len(p) > 25 for p in palavras)):
+        return None, _erro("sem_sentido",
+            f"Não consegui entender sua entrada. {EXEMPLO}")
+
+    # 7. pergunta não é de sim ou não (precisa da tradução)
+    pergunta_en = traduzir_Marian(texto)
+    if pergunta_para_claim(pergunta_en) is None:
+        return None, _erro("pergunta_invalida",
+            "Não consegui transformar sua pergunta em uma afirmação a ser verificada. "
+            "O sistema trabalha com perguntas de sim ou não. "
+            "Em vez de 'Qual o melhor tratamento para a COVID-19?', "
+            "pergunte, por exemplo, 'A ivermectina trata a COVID-19?'.")
+
+    return pergunta_en, None
+
 def analisar_alegacao(pergunta_pt):
-    print(f"\n[1] Traduzindo '{pergunta_pt}'...")
-    pergunta_en = traduzir_Marian(pergunta_pt)
-    print(f"Tradução: {pergunta_en}")
     
+    print(f"\n[1] Validando e traduzindo '{pergunta_pt}'...")
+    pergunta_en, erro = validar_pergunta(pergunta_pt)
+    if erro:
+        return erro
+    print(f"Tradução: {pergunta_en}")
+
     print(f"[2] Vasculhando o PubMed...")
     
     resultado = coletar_evidencias(pergunta_en, n=20)
@@ -86,15 +148,20 @@ def analisar_alegacao(pergunta_pt):
     }
 
 # teste
+# teste
 if __name__ == "__main__":
-    pergunta = input("Digite a alegação médica: ")
-    analise = analisar_alegacao(pergunta)
-    
-    if analise["status"] == "sucesso":
-        
-        for ev in analise["evidencias"]:
-            print(f"\n[CLASSIFICAÇÃO: {ev.label}] - {ev.titulo}")
-            print(f"Link PubMed: {ev.link}")
-            print(f"Trecho: {ev.evidencia[:200]}...") 
-    else:
-        print("\n[ERRO]", analise["mensagem"])
+    while True:
+        pergunta = input("\nDigite a alegação médica (ou 'sair'): ")
+        if pergunta.strip().lower() == "sair":
+            break
+
+        analise = analisar_alegacao(pergunta)
+
+        if analise["status"] == "sucesso":
+
+            for ev in analise["evidencias"]:
+                print(f"\n[CLASSIFICAÇÃO: {ev.label}] - {ev.titulo}")
+                print(f"Link PubMed: {ev.link}")
+                print(f"Trecho: {ev.evidencia[:200]}...")
+        else:
+            print("\n[ERRO]", analise["mensagem"])

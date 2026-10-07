@@ -8,6 +8,7 @@ openpyxl
 spacy
 yake
 sentencepiece
+sentence_transformers
 sacremoses
 joblib
 transformers
