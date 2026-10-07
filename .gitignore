@@ -1,3 +1,10 @@
 # ignora arquivos gerados do projeto, mas mantém os dados do treinamento
 data/raw/*.xlsx
 resultados/**/*.png
+.DS_Store
+
+# ambiente
+.env
+node_modules/
+dist/
+__pycache__/
